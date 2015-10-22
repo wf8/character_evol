@@ -40,9 +40,11 @@ tree.quasse.regimes <- function(pars, regimes=NA, max.taxa=Inf, max.t=Inf,
 make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
                              single.lineage=TRUE,
                              verbose=FALSE, k=500, ...) {
-  lambda <- pars[[1]]
-  mu     <- pars[[2]]
-  char   <- pars[[3]]
+  lambda   <- pars[[1]]
+  lambda_d <- pars[[2]]
+  mu       <- pars[[3]]
+  mu_d     <- pars[[4]]
+  char     <- pars[[5]]
   
   if ( single.lineage ) {
     info <- data.frame(idx=1, len=1e-8, parent=0, state=x0,
@@ -62,7 +64,7 @@ make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
   while ( n.taxa <= max.taxa && n.taxa > 0 && t.left_total > 0 ) {
       verbose = TRUE
       while ( t.left_regime > 0 && t.left_total > 0 ) {
-        x <- run.until.change(lineages, info, k, lambda[[i]], mu[[i]], char[[i]], t.left_regime)
+        x <- run.until.change(lineages, info, k, lambda[[i]], lambda_d[[i]], mu[[i]], mu_d[[i]], char[[i]], t.left_regime)
         lineages <- x[[1]]
         info <- x[[2]]
         n.taxa <- length(lineages)
@@ -92,8 +94,9 @@ make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
 
 
 # function to evolve the tree under a give regime
+# modified to accept diversity dependent lambda and mu
 # from package diversitree
-run.until.change <- function(lineages, info, k, lambda, mu, char,
+run.until.change <- function(lineages, info, k, lambda, lambda_d, mu, mu_d, char,
                              max.t) {
   i <- 1
   time <- 0
@@ -102,8 +105,8 @@ run.until.change <- function(lineages, info, k, lambda, mu, char,
   niter <- 1
   repeat {
     state <- info$state[lineages]
-    lx <- lambda(state)
-    mx <- mu(state)
+    lx <- lambda(state) + lambda_d(length(lineages))
+    mx <- mu(state) + mu_d(length(lineages))
     r <- sum(lx + mx)
     dt <- 1/(r*k)
     

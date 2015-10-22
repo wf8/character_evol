@@ -18,18 +18,34 @@ root_state <- 0.0
 # a vector to hold the times at which each regime ends
 regimes <- c(2.5, 5, 7.5, 10)
 
-# a list of speciation functions for the regime shifts, one function per regime
+# for each regime, speciation and extinction are each calculated as the sum of two functions: 
+# 1) a function of the character value x
+# 2) a function of the number of lineages (diversity dependence)
+
+# speciation as a function of the character value x
 lambda <- list(function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=0, s2=1),
                function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=3, s2=1),
                function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=6, s2=1),
                function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=9, s2=1))
 #lambda <- list(function(x) constant.x(x, 0.3))
 
-# a list of extinction functions for the regime shifts, one function per regime
-mu <- list(function(x) constant.x(x, 0.1), 
-           function(x) constant.x(x, 0.1),
-           function(x) constant.x(x, 0.1),
-           function(x) constant.x(x, 0.1))
+# speciation as a function of the number of lineages d
+lambda_d <- list(function(d) constant.x(d, 0.0), 
+                 function(d) constant.x(d, 0.0),
+                 function(d) constant.x(d, 0.0),
+                 function(d) constant.x(d, 0.0))
+
+# extinction as a function of the character value x
+mu <- list(function(x) constant.x(x, 0.0), 
+           function(x) constant.x(x, 0.0),
+           function(x) constant.x(x, 0.0),
+           function(x) constant.x(x, 0.0))
+
+# extinction as a function of the number of lineages d
+mu_d <- list(function(d) { rep(0.05 * d, length(d)) }, # extinction increase linearly with slope 0.05
+             function(d) { rep(0.05 * d, length(d)) },
+             function(d) { rep(0.05 * d, length(d)) },
+             function(d) { rep(0.05 * d, length(d)) })
 
 # character evolving with brownian motion, one function per regime
 char <- list(make.brownian.with.drift(0, 1.0),
@@ -44,7 +60,7 @@ simulations <- list()
 for (i in 1:replicates) {
 
     # simulate tree and character
-    sim_data <- tree.quasse.regimes(list(lambda, mu, char), regimes=regimes, 
+    sim_data <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes, 
                                     max.t=max_time, x0=root_state, single.lineage=FALSE)
 
     # get tip states and branching times from simulated data
