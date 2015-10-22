@@ -1,6 +1,7 @@
 #
 # script to run various simulations of character evolution and
 # then estimate ancestral states using brownian motion
+# plus a few options for visually summarizing the results
 #
 
 # load the libraries and custom functions needed
@@ -9,8 +10,10 @@ source("setup.R")
 # we will time the simulation
 start_time <- Sys.time()
 
-# setup simulation parameters starting with the tree height
+# setup simulation parameters
+replicates <- 4
 max_time <- 10
+root_state <- 0.0
 
 # a vector to hold the times at which each regime ends
 regimes <- c(10)
@@ -25,65 +28,60 @@ mu <- list(function(x) constant.x(x, 0.0))
 # character evolving with brownian motion, one function per regime
 char <- list(make.brownian.with.drift(0, 1.0))
 
-# variables to store our simulated data in:
-sim_data <- list()
-tip_states <- list()
-branch_times <- list()
-sim_anc_states <- list()
-rescaled_branch_time <- list()
+# a list to store each simulation's data in:
+simulations <- list()
 
-# variables to store our estimated data in:
-est_data <- list()
-est_anc_states <- list()
-node_differences <- list()
-root_differences <- vector()
-
-# run the simulation
-replicates <- 1
+# run the simulations
 for (i in 1:replicates) {
 
     # simulate tree and character
-    sim_data[[i]] <- tree.quasse.regimes(list(lambda, mu, char), regimes=regimes, max.t=max_time, x0=0, single.lineage=FALSE)
+    sim_data <- tree.quasse.regimes(list(lambda, mu, char), regimes=regimes, 
+                                    max.t=max_time, x0=root_state, single.lineage=FALSE)
 
     # get tip states and branching times from simulated data
-    tip_states[[i]] <- sim_data[[i]]$tip.state
-    branch_times[[i]] <- as.vector(branching.times(sim_data[[i]]))
-    rescaled_branch_time[[i]] <- branch_times[[i]] / max(branch_times[[i]])
+    tip_states <- sim_data$tip.state
+    branch_times <- as.vector(branching.times(sim_data))
 
     # reorder and extract the simulated ancestral states 
-    sim_anc_states[[i]] <- 0.0
-    for (j in length(sim_data[[i]]$tip.state)+1:max(sim_data[[i]]$orig$idx2)) {
+    sim_anc_states <- root_state
+    for (j in (length(tip_states) + 1):max(sim_data$orig$idx2)) {
 
-       sim_anc_states[[i]] <- c(sim_anc_states[[i]], sim_data[[i]]$orig$state[ sim_data[[i]]$orig$idx2==j ] )
+       sim_anc_states <- c(sim_anc_states, sim_data$orig$state[ sim_data$orig$idx2 == j ] )
 
     }
 
     # infer ancestral states
-    est_data[[i]] <- ace(tip_states[[i]], sim_data[[i]], type="continuous")
-    est_anc_states[[i]] <- as.vector(est_data[[i]]$ace)
+    est_data <- ace(tip_states, sim_data, type="continuous")
+    est_anc_states <- as.vector(est_data$ace)
 
     # calculate contrasts between simulated and estimated ancestral states
-    node_differences[[i]] <- sim_anc_states[[i]] - est_anc_states[[i]]
-    root_differences[i] <- sim_anc_states[[i]][1] - est_anc_states[[i]][1]
+    node_differences <- sim_anc_states - est_anc_states
+    root_difference <- sim_anc_states[1] - est_anc_states[1]
+
+    # save all the data for this simulation
+    simulations[[i]] <- list(sim_data=sim_data, tip_states=tip_states, branch_times=branch_times, 
+                             rescaled_branch_times=rescaled_branch_times, sim_anc_states=sim_anc_states, 
+                             est_data=est_data, est_anc_states=est_anc_states, 
+                             node_differences=node_differences, root_difference=root_difference)
+
 }
 
 # record the final time
 processing_time <- Sys.time() - start_time
 
-#hist(tree_depths, breaks=20)
-#hist(root_differences)
+# various methods for summarizing the results:
+
+# plot two traitgrams on top of one another
+traitgram_sim(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data)
+traitgram_est(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data)
+
+# plot the root differences for all simulations
+#root_differences <- sapply(simulations, function(x){x$root_difference})
+#hist(root_differences, breaks=20)
 
 # plot rescaled branch times against difference between simulated and estimated states
-#plot(rescaled_branch_time, sim_anc_states - est_anc_states)
+#branch_times <- unlist( sapply(simulations, function(x){x$branch_times}) )
+#sim_anc_states <- unlist( sapply(simulations, function(x){x$sim_anc_states}) )
+#est_anc_states <- unlist( sapply(simulations, function(x){x$est_anc_states}) )
+#plot(branch_times, sim_anc_states - est_anc_states)
 
-# plot the two traitgrams on top of one another
-traitgram_sim(tip_states[[1]], sim_anc_states[[1]], sim_data[[1]])
-traitgram_est(tip_states[[1]], sim_data[[1]])
-
-
-# plot the ancestral states as circles on the nodes
-#plot(sim_data, label.offset=.05)
-#nodelabels()
-#tiplabels()
-#tiplabels(pch=21, cex=tip_states, bg="yellow")
-#nodelabels(pch=21, cex= anc_states$ace, bg="yellow")

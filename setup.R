@@ -252,7 +252,7 @@ traitgram_sim <- function (x, internal_node_values, phy, xaxt = "s", underscore 
 
 
 # modified traitgram function to add estimated ancestral values to existing plot
-traitgram_est <- function (x, phy, xaxt = "s", underscore = FALSE, show.names = TRUE,
+traitgram_est <- function (x, internal_node_values, phy, xaxt = "s", underscore = FALSE, show.names = TRUE,
     show.xaxis.values = TRUE, method = c("ML", "pic"), ...)
 {
     method <- match.arg(method)
@@ -280,7 +280,8 @@ traitgram_est <- function (x, phy, xaxt = "s", underscore = FALSE, show.names = 
         if (show.xaxis.values)
             lmar = 1
         else lmar = 0.5
-    xanc <- ace(xx, phy, method = method)$ace
+    #xanc <- ace(xx, phy, method = method)$ace
+    xanc <- internal_node_values
     xall = c(xx, xanc)
     a0 = ages[phy$edge[, 1]]
     a1 = ages[phy$edge[, 2]]
