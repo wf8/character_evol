@@ -11,22 +11,31 @@ source("setup.R")
 start_time <- Sys.time()
 
 # setup simulation parameters
-replicates <- 4
+replicates <- 1
 max_time <- 10
 root_state <- 0.0
 
 # a vector to hold the times at which each regime ends
-regimes <- c(10)
+regimes <- c(2.5, 5, 7.5, 10)
 
 # a list of speciation functions for the regime shifts, one function per regime
-#lambda <- list(function(x) noroptimal.x(x, y0=0, y1=30, xmid=0, s2=10))
-lambda <- list(function(x) constant.x(x, 0.3))
+lambda <- list(function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=0, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=3, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=6, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=9, s2=1))
+#lambda <- list(function(x) constant.x(x, 0.3))
 
 # a list of extinction functions for the regime shifts, one function per regime
-mu <- list(function(x) constant.x(x, 0.0))
+mu <- list(function(x) constant.x(x, 0.1), 
+           function(x) constant.x(x, 0.1),
+           function(x) constant.x(x, 0.1),
+           function(x) constant.x(x, 0.1))
 
 # character evolving with brownian motion, one function per regime
-char <- list(make.brownian.with.drift(0, 1.0))
+char <- list(make.brownian.with.drift(0, 1.0),
+             make.brownian.with.drift(0, 1.0),
+             make.brownian.with.drift(0, 1.0),
+             make.brownian.with.drift(0, 1.0))
 
 # a list to store each simulation's data in:
 simulations <- list()
@@ -60,8 +69,7 @@ for (i in 1:replicates) {
 
     # save all the data for this simulation
     simulations[[i]] <- list(sim_data=sim_data, tip_states=tip_states, branch_times=branch_times, 
-                             rescaled_branch_times=rescaled_branch_times, sim_anc_states=sim_anc_states, 
-                             est_data=est_data, est_anc_states=est_anc_states, 
+                             sim_anc_states=sim_anc_states, est_data=est_data, est_anc_states=est_anc_states, 
                              node_differences=node_differences, root_difference=root_difference)
 
 }
