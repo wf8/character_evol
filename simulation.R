@@ -23,10 +23,10 @@ regimes <- c(2.5, 5, 7.5, 10)
 # 2) a function of the number of lineages (diversity dependence)
 
 # speciation as a function of the character value x
-lambda <- list(function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=0, s2=1),
-               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=3, s2=1),
-               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=6, s2=1),
-               function(x) noroptimal.x(x, y0=0, y1=1.0, xmid=9, s2=1))
+lambda <- list(function(x) noroptimal.x(x, y0=0, y1=2.0, xmid=0, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=2.0, xmid=3, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=2.0, xmid=6, s2=1),
+               function(x) noroptimal.x(x, y0=0, y1=2.0, xmid=9, s2=1))
 #lambda <- list(function(x) constant.x(x, 0.3))
 
 # speciation as a function of the number of lineages d
@@ -61,7 +61,7 @@ for (i in 1:replicates) {
 
     # simulate tree and character
     sim_data <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes, 
-                                    max.t=max_time, x0=root_state, single.lineage=FALSE)
+                                    max.t=max_time, x0=root_state, single.lineage=FALSE, include.extinct=FALSE)
 
     # get tip states and branching times from simulated data
     tip_states <- sim_data$tip.state
@@ -94,18 +94,29 @@ for (i in 1:replicates) {
 processing_time <- Sys.time() - start_time
 
 # various methods for summarizing the results:
+par(mfrow=c(2,2))
 
 # plot two traitgrams on top of one another
-traitgram_sim(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data)
+traitgram_sim(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data, xlab="trait")
 traitgram_est(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data)
+
+# plot rescaled branch times against difference between simulated and estimated states
+branch_times <- unlist( sapply(simulations, function(x){max(x$branch_times) - x$branch_times}) )
+sim_anc_states <- unlist( sapply(simulations, function(x){x$sim_anc_states}) )
+est_anc_states <- unlist( sapply(simulations, function(x){x$est_anc_states}) )
+plot(branch_times, sim_anc_states[1:length(est_anc_states)] - est_anc_states, xlab="branching times", ylab="ancestral state differences")
+
+# plot lineage through time curve
+lineages <- attr(simulations[[1]]$sim_data$orig, "lineages_thru_time")
+ages <- attr(simulations[[1]]$sim_data$orig, "ages")
+plot(ages, lineages, type="l", xlab="time")
+
+# view tree unbalance
+plot(ladderize(simulations[[1]]$sim_data))
+axisPhylo(backward=FALSE)
 
 # plot the root differences for all simulations
 #root_differences <- sapply(simulations, function(x){x$root_difference})
 #hist(root_differences, breaks=20)
 
-# plot rescaled branch times against difference between simulated and estimated states
-#branch_times <- unlist( sapply(simulations, function(x){x$branch_times}) )
-#sim_anc_states <- unlist( sapply(simulations, function(x){x$sim_anc_states}) )
-#est_anc_states <- unlist( sapply(simulations, function(x){x$est_anc_states}) )
-#plot(branch_times, sim_anc_states - est_anc_states)
 
