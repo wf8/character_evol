@@ -68,7 +68,8 @@ for (i in 1:replicates) {
     branch_times <- as.vector(branching.times(sim_data))
 
     # reorder and extract the simulated ancestral states 
-    sim_anc_states <- root_state
+    #sim_anc_states <- root_state
+    sim_anc_states <- vector()
     for (j in (length(tip_states) + 1):max(sim_data$orig$idx2)) {
 
        sim_anc_states <- c(sim_anc_states, sim_data$orig$state[ sim_data$orig$idx2 == j ] )
@@ -101,10 +102,10 @@ traitgram_sim(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simu
 traitgram_est(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data)
 
 # plot rescaled branch times against difference between simulated and estimated states
-branch_times <- unlist( sapply(simulations, function(x){max(x$branch_times) - x$branch_times}) )
+branch_times <- unlist( sapply(simulations, function(x){max_time - x$branch_times}) )
 sim_anc_states <- unlist( sapply(simulations, function(x){x$sim_anc_states}) )
 est_anc_states <- unlist( sapply(simulations, function(x){x$est_anc_states}) )
-plot(branch_times, sim_anc_states[1:length(est_anc_states)] - est_anc_states, xlab="branching times", ylab="ancestral state differences")
+plot(branch_times, sim_anc_states[1:length(est_anc_states)] - est_anc_states, xlab="time", ylab="ancestral state differences")
 
 # plot lineage through time curve
 lineages <- attr(simulations[[1]]$sim_data$orig, "lineages_thru_time")
@@ -112,8 +113,8 @@ ages <- attr(simulations[[1]]$sim_data$orig, "ages")
 plot(ages, lineages, type="l", xlab="time")
 
 # view tree unbalance
-plot(ladderize(simulations[[1]]$sim_data))
-axisPhylo(backward=FALSE)
+plot(ladderize(simulations[[1]]$sim_data), root.edge=TRUE)
+axisPhylo(backward=FALSE, root.time=round(simulations[[1]]$sim_data$root.edge, 2))
 
 # plot the root differences for all simulations
 #root_differences <- sapply(simulations, function(x){x$root_difference})
