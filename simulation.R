@@ -42,10 +42,10 @@ mu <- list(function(x) constant.x(x, 0.0),
            function(x) constant.x(x, 0.0))
 
 # extinction as a function of the number of lineages d
-mu_d <- list(function(d) { rep(0.05 * d, length(d)) }, # extinction increase linearly with slope 0.05
-             function(d) { rep(0.05 * d, length(d)) },
-             function(d) { rep(0.05 * d, length(d)) },
-             function(d) { rep(0.05 * d, length(d)) })
+mu_d <- list(function(d) { rep(0.05 * (d-1), length(d)) }, # extinction increase linearly with slope 0.05
+             function(d) { rep(0.05 * (d-1), length(d)) },
+             function(d) { rep(0.05 * (d-1), length(d)) },
+             function(d) { rep(0.05 * (d-1), length(d)) })
 
 # character evolving with brownian motion, one function per regime
 char <- list(make.brownian.with.drift(0, 1.0),
@@ -98,8 +98,8 @@ processing_time <- Sys.time() - start_time
 par(mfrow=c(2,2))
 
 # plot two traitgrams on top of one another
-traitgram_sim(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data, xlab="trait")
-traitgram_est(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data)
+traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data, xlab="trait", method="sim")
+traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data, method="est")
 
 # plot rescaled branch times against difference between simulated and estimated states
 branch_times <- unlist( sapply(simulations, function(x){max_time - x$branch_times}) )
