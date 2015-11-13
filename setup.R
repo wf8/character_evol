@@ -22,34 +22,39 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
     for (i in 1:replicates) {
 
         # simulate tree and character
-        sim_data <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
+        sim_tree <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
                                         max.t=max_time, x0=root_state, single.lineage=TRUE, include.extinct=include_extinct)
 
+        # remember the finishing time of this simulation
+        finishing_time <- max(attr(sim_tree$orig, "ages"))
+
         # get tip states and branching times from simulated data
-        tip_states <- sim_data$tip.state
-        branch_times <- as.vector(branching.times(sim_data))
+        tip_states <- sim_tree$tip.state
+        branch_times <- c(finishing_time, as.vector(branching.times(sim_tree)))
 
         # reorder and extract the simulated ancestral states
-        #sim_anc_states <- root_state
-        sim_anc_states <- vector()
-        for (j in (length(tip_states) + 1):max(sim_data$orig$idx2)) {
+        sim_anc_states <- root_state
+        #sim_anc_states <- vector() # this will not include the root state
+        for (j in (length(tip_states) + 1):max(sim_tree$orig$idx2)) {
 
-           sim_anc_states <- c(sim_anc_states, sim_data$orig$state[ sim_data$orig$idx2 == j ] )
+           sim_anc_states <- c(sim_anc_states, sim_tree$orig$state[ sim_tree$orig$idx2 == j ] )
 
         }
 
         # infer ancestral states
-        est_data <- ace(tip_states, sim_data, type="continuous")
-        est_anc_states <- as.vector(est_data$ace)
+        est_data <- ace(tip_states, sim_tree, type="continuous")
+        est_root_state <- as.vector(est_data$ace)[1]
+        est_anc_states <- c(est_root_state, as.vector(est_data$ace))
 
         # calculate contrasts between simulated and estimated ancestral states
         node_differences <- sim_anc_states[1:length(est_anc_states)] - est_anc_states
         root_difference <- sim_anc_states[1] - est_anc_states[1]
 
         # save all the data for this simulation
-        simulations[[i]] <- list(sim_data=sim_data, tip_states=tip_states, branch_times=branch_times,
+        simulations[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
                                  sim_anc_states=sim_anc_states, est_data=est_data, est_anc_states=est_anc_states,
-                                 node_differences=node_differences, root_difference=root_difference)
+                                 node_differences=node_differences, root_difference=root_difference, 
+                                 finishing_time=finishing_time)
 
     }
 
@@ -61,28 +66,29 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
 
 
 # Plots various summaries of the results.
-plot_simulations <- function(replicates, max_time, simulations) {
+plot_simulations <- function(replicates, simulations) {
 
     par(mfrow=c(2,2))
 
     # plot two traitgrams on top of one another
-    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_data, xlab="trait", method="sim")
-    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_data, method="est")
+    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time, lab="trait", method="sim")
+    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time,method="est")
 
     # plot rescaled branch times against difference between simulated and estimated states
-    branch_times <- unlist( sapply(simulations[1:replicates], function(x){max_time - x$branch_times}) )
+    branch_times <- unlist( sapply(simulations[1:replicates], function(x){x$finishing_time - x$branch_times}) )
     sim_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$sim_anc_states}) )
     est_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$est_anc_states}) )
-    plot(branch_times, sim_anc_states[1:length(est_anc_states)] - est_anc_states, xlab="time", ylab="ancestral state differences")
+    state_differences <- sim_anc_states[1:length(est_anc_states)] - est_anc_states
+    plot(branch_times, state_differences, xlab="time", ylab="ancestral state differences")
 
     # plot lineage through time curve
-    lineages <- attr(simulations[[1]]$sim_data$orig, "lineages_thru_time")
-    ages <- attr(simulations[[1]]$sim_data$orig, "ages")
+    lineages <- attr(simulations[[1]]$sim_tree$orig, "lineages_thru_time")
+    ages <- attr(simulations[[1]]$sim_tree$orig, "ages")
     plot(ages, lineages, type="l", xlab="time")
 
     # view tree unbalance
-    plot(ladderize(simulations[[1]]$sim_data), root.edge=TRUE)
-    axisPhylo(backward=FALSE, root.time=round(simulations[[1]]$sim_data$root.edge, 2))
+    plot(ladderize(simulations[[1]]$sim_tree), root.edge=TRUE)
+    axisPhylo(backward=FALSE, root.time=round(simulations[[1]]$sim_tree$root.edge, 2))
 
     # plot the root differences for all simulations
     #root_differences <- sapply(simulations, function(x){x$root_difference})
@@ -116,8 +122,8 @@ tree.quasse.regimes <- function(pars, regimes=NA, max.taxa=Inf, max.t=Inf,
   else
     phy2 <- prune(phy)
     # add root stem
-    if (max.t > 0)
-        phy2$root.edge <- max.t - max(branching.times(phy2))
+    finishing_time <- max(attr(phy2$orig, "ages"))
+    phy2$root.edge <- finishing_time - max(branching.times(phy2))
     phy2
 }
 
@@ -289,9 +295,8 @@ me.to.ape.quasse <- function(info) {
 # Modified traitgram function to plot given simulated and estimated ancestral trait values.
 # If method="sim" then plot black trait lines.
 # If method="est" add to an existing plot the estimated trait values with red dashed lines.
-# TODO: plot root stem
 # Modified from package picante.
-traitgram_given <- function (x, internal_node_values, phy, xaxt = "s", underscore = FALSE, show.names = TRUE,
+traitgram_given <- function (x, internal_node_values, phy, finishing_time, xaxt = "s", underscore = FALSE, show.names = TRUE,
     show.xaxis.values = TRUE, method = c("sim", "est", "ML", "pic"), ...)
 {
     method <- match.arg(method)
@@ -320,7 +325,7 @@ traitgram_given <- function (x, internal_node_values, phy, xaxt = "s", underscor
             lmar = 1
         else lmar = 0.5
     if (method == "sim" || method == "est")
-        xanc <- internal_node_values
+        xanc <- internal_node_values[2:length(internal_node_values)] # skip the root state
     else
         xanc <- ace(xx, phy, method = method)$ace
     xall = c(xx, xanc)
@@ -328,14 +333,22 @@ traitgram_given <- function (x, internal_node_values, phy, xaxt = "s", underscor
     a1 = ages[phy$edge[, 2]]
     x0 = xall[phy$edge[, 1]]
     x1 = xall[phy$edge[, 2]]
+    if (method == "est" || method == "sim") {
+        # add the root state and age
+        offset <- finishing_time - max(a1)
+        a1 <- c(offset + a0[1], offset + a1)
+        a0 <- c(0, offset + a0)
+        x1 <- c(x0[1], x1)
+        x0 <- c(internal_node_values[1], x0)
+    }
     tg = par(bty = "n", mai = c(lmar, 0.1, umar, 0.1))
     if (show.names) {
-        maxNameLength = max(nchar(names(xx)))
-        ylim = c(min(ages), max(ages) * (1 + maxNameLength/50))
+        #maxNameLength = max(nchar(names(xx)))
+        ylim = c(0, finishing_time + 2) #* (1 + maxNameLength/50))
         if (!underscore)
             names(xx) = gsub("_", " ", names(xx))
     }
-    else ylim = range(ages)
+    else ylim = c(0, finishing_time)
     if (method != "est") {
         plot(range(c(x0, x1)), range(c(a0, a1)), type = "n", xaxt = "n",
             yaxt = "n", xlab = "", ylab = "", bty = "n", ylim = ylim, xlim=c(-10,10),
@@ -349,7 +362,7 @@ traitgram_given <- function (x, internal_node_values, phy, xaxt = "s", underscor
         segments(x0, a0, x1, a1, col="red", lty=2)
     }
     if (show.names) {
-        text(sort(xx), max(ages), labels = names(xx)[order(xx)],
+        text(sort(xx), finishing_time, labels = names(xx)[order(xx)],
             adj = -0, srt = 90)
     }
     on.exit(par(tg))

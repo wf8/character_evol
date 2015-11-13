@@ -54,6 +54,6 @@ char <- list(make.brownian.with.drift(0, 1.0),
 simulations <- simulate_trees(replicates, lambda, lambda_d, mu, mu_d, char, regimes, max_time, root_state, include_extinct=FALSE) 
 
 # plot some results
-plot_simulations(replicates, max_time, simulations)
+plot_simulations(replicates, simulations)
 
 
