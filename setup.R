@@ -45,22 +45,32 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
 
         }
 
-        # infer ancestral states
-        #est_data <- ace(tip_states, sim_tree, type="continuous")
-        #est_root_state <- as.vector(est_data$ace)[1]
-        #est_anc_states <- c(est_root_state, as.vector(est_data$ace))
-        est_data <- ace_lp(tip_states, sim_tree)
-        est_root_state <- est_data[1]
-        est_anc_states <- c(est_root_state, est_data)
+        # infer ancestral states using
+        # Brownian motion (BM) model fitted by residual maximum likelihood
+        est_data_bm <- ace(tip_states, sim_tree, type="continuous")
+        est_root_state_bm <- as.vector(est_data_bm$ace)[1]
+        est_anc_states_bm <- c(est_root_state_bm, as.vector(est_data_bm$ace))
 
-        # calculate contrasts between simulated and estimated ancestral states
-        node_differences <- sim_anc_states[1:length(est_anc_states)] - est_anc_states
-        root_difference <- sim_anc_states[1] - est_anc_states[1]
+        # infer ancestral states using
+        # linear parsimony (LP)
+        est_data_lp <- ace_lp(tip_states, sim_tree)
+        est_root_state_lp <- est_data_lp[1]
+        est_anc_states_lp <- c(est_root_state_lp, est_data_lp)
+
+        # calculate contrasts between simulated and BM estimated ancestral states
+        node_differences_bm <- sim_anc_states[1:length(est_anc_states_bm)] - est_anc_states_bm
+        root_difference_bm <- sim_anc_states[1] - est_anc_states_bm[1]
+        
+        # calculate contrasts between simulated and LP estimated ancestral states
+        node_differences_lp <- sim_anc_states[1:length(est_anc_states_lp)] - est_anc_states_lp
+        root_difference_lp <- sim_anc_states[1] - est_anc_states_lp[1]
 
         # save all the data for this simulation
         simulations[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
-                                 sim_anc_states=sim_anc_states, est_data=est_data, est_anc_states=est_anc_states,
-                                 node_differences=node_differences, root_difference=root_difference, 
+                                 sim_anc_states=sim_anc_states, est_data_bm=est_data_bm, est_anc_states_bm=est_anc_states_bm,
+                                 node_differences_bm=node_differences_bm, root_difference_bm=root_difference_bm, 
+                                 est_data_lp=est_data_lp, est_anc_states_lp=est_anc_states_lp,
+                                 node_differences_lp=node_differences_lp, root_difference_lp=root_difference_lp, 
                                  finishing_time=finishing_time)
 
         # update progress bar
@@ -70,25 +80,34 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
 
     # record the final time
     simulations$processing_time <- Sys.time() - start_time
+    
+    writeLines("\n")
 
     simulations
 }
 
 
 # Plots various summaries of the results.
-plot_simulations <- function(replicates, simulations) {
+plot_simulations <- function(replicates, simulations, est_type="bm") {
+
+    if (est_type == "bm") {
+        est_anc_states = simulations[[1]]$est_anc_states_bm
+        all_est_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$est_anc_states_bm}) )
+    } else {
+        est_anc_states = simulations[[1]]$est_anc_states_lp
+        all_est_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$est_anc_states_lp}) )
+    }
 
     par(mfrow=c(2,2))
 
     # plot two traitgrams on top of one another
     traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time, lab="trait", method="sim")
-    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time,method="est")
+    traitgram_given(simulations[[1]]$tip_states, est_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time,method="est")
 
     # plot rescaled branch times against difference between simulated and estimated states
     branch_times <- unlist( sapply(simulations[1:replicates], function(x){x$finishing_time - x$branch_times}) )
     sim_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$sim_anc_states}) )
-    est_anc_states <- unlist( sapply(simulations[1:replicates], function(x){x$est_anc_states}) )
-    state_differences <- sim_anc_states[1:length(est_anc_states)] - est_anc_states
+    state_differences <- sim_anc_states[1:length(all_est_anc_states)] - all_est_anc_states
     plot(branch_times, state_differences, xlab="time", ylab="ancestral state differences")
 
     # plot lineage through time curve
