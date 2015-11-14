@@ -12,6 +12,10 @@ library(picante)
 # Main function that runs simulations and saves results.
 simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes, max_time, root_state, include_extinct=FALSE) {
 
+    # progress bar
+    pb <- txtProgressBar(style = 3)
+    setTxtProgressBar(pb, 0.0)
+
     # we will time the simulation
     start_time <- Sys.time()
 
@@ -20,7 +24,7 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
 
     # run the simulations
     for (i in 1:replicates) {
-
+    
         # simulate tree and character
         sim_tree <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
                                         max.t=max_time, x0=root_state, single.lineage=TRUE, include.extinct=include_extinct)
@@ -42,9 +46,12 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
         }
 
         # infer ancestral states
-        est_data <- ace(tip_states, sim_tree, type="continuous")
-        est_root_state <- as.vector(est_data$ace)[1]
-        est_anc_states <- c(est_root_state, as.vector(est_data$ace))
+        #est_data <- ace(tip_states, sim_tree, type="continuous")
+        #est_root_state <- as.vector(est_data$ace)[1]
+        #est_anc_states <- c(est_root_state, as.vector(est_data$ace))
+        est_data <- ace_lp(tip_states, sim_tree)
+        est_root_state <- est_data[1]
+        est_anc_states <- c(est_root_state, est_data)
 
         # calculate contrasts between simulated and estimated ancestral states
         node_differences <- sim_anc_states[1:length(est_anc_states)] - est_anc_states
@@ -55,6 +62,9 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
                                  sim_anc_states=sim_anc_states, est_data=est_data, est_anc_states=est_anc_states,
                                  node_differences=node_differences, root_difference=root_difference, 
                                  finishing_time=finishing_time)
+
+        # update progress bar
+        setTxtProgressBar(pb, i/replicates)
 
     }
 
@@ -94,6 +104,43 @@ plot_simulations <- function(replicates, simulations) {
     #root_differences <- sapply(simulations, function(x){x$root_difference})
     #hist(root_differences, breaks=20)
 
+}
+
+
+# Calculates ancestral states using linear parsimony as
+# described in Swofford and Maddison 1987
+ace_lp <- function(tip_states, tree) {
+
+    # 1: pass down the tree and get the state sets (Farris intervals) for each internal node
+    tree <- reorder(tree, "postorder")
+    state_sets = list()
+    for (i in 1:length(tree$edge[,1])) {
+        node_id <- tree$edge[i,2]
+        if (node_id <= length(tip_states))
+            state_sets[[ node_id ]] <- c(tip_states[ node_id ])
+        else {
+            desc_id <- tree$edge[,2][ tree$edge[,1] == node_id ]
+            mins <- c(min(state_sets[[ desc_id[1] ]]), min(state_sets[[ desc_id[2] ]]))
+            maxs <- c(max(state_sets[[ desc_id[1] ]]), max(state_sets[[ desc_id[2] ]]))
+            state_sets[[ node_id ]] <- c( min( maxs ), max( mins ) )
+        }
+    }
+    root_id <- tree$edge[,1][length(tree$edge[,1])]
+    desc_id <- tree$edge[,2][ tree$edge[,1] == root_id ]
+    mins <- c(min(state_sets[[ desc_id[1] ]]), min(state_sets[[ desc_id[2] ]]))
+    maxs <- c(max(state_sets[[ desc_id[1] ]]), max(state_sets[[ desc_id[2] ]]))
+    state_sets[[ root_id ]] <- c( min( maxs ), max( mins ) )
+    # 2: preorder traversal and for each node calculate median of ancestral node state and Farris intervals.
+    anc_states <- c( median( state_sets[[ root_id ]] ) )
+    for (i in length(tree$edge[,1]):1) {
+        node_id <- tree$edge[i,2]
+        if (node_id > root_id) {
+            anc_id <- tree$edge[i,1]
+            anc_state <- median( c(state_sets[[ node_id ]], anc_states[ anc_id - root_id + 1 ]) )
+            anc_states[node_id - root_id + 1] <- anc_state
+        }
+    }
+    anc_states
 }
 
 
@@ -156,7 +203,7 @@ make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
   i <- 1
   j <- 2
   while ( n.taxa[1] <= max.taxa && n.taxa[1] > 0 && t.left_total > 0 ) {
-      verbose = TRUE
+      verbose = FALSE
       while ( t.left_regime > 0 && t.left_total > 0 ) {
         x <- run.until.change(lineages, info, k, lambda[[i]], lambda_d[[i]], mu[[i]], mu_d[[i]], char[[i]], t.left_regime)
         lineages <- x[[1]]
