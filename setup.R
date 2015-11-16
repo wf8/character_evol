@@ -29,49 +29,58 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
         sim_tree <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
                                         max.t=max_time, x0=root_state, single.lineage=TRUE, include.extinct=include_extinct)
 
-        # remember the finishing time of this simulation
-        finishing_time <- max(attr(sim_tree$orig, "ages"))
+        # check if all lineages went extinct
+        if (is.null(sim_tree)) {
 
-        # get tip states and branching times from simulated data
-        tip_states <- sim_tree$tip.state
-        branch_times <- c(finishing_time, as.vector(branching.times(sim_tree)))
+            simulations[[i]] <- list(sim_tree=sim_tree)
+        
+        } else {
 
-        # reorder and extract the simulated ancestral states
-        sim_anc_states <- root_state
-        #sim_anc_states <- vector() # this will not include the root state
-        for (j in (length(tip_states) + 1):max(sim_tree$orig$idx2)) {
+            # remember the finishing time of this simulation
+            finishing_time <- max(attr(sim_tree$orig, "ages"))
 
-           sim_anc_states <- c(sim_anc_states, sim_tree$orig$state[ sim_tree$orig$idx2 == j ] )
+            # get tip states and branching times from simulated data
+            tip_states <- sim_tree$tip.state
+            branch_times <- c(finishing_time, as.vector(branching.times(sim_tree)))
+
+            # reorder and extract the simulated ancestral states
+            sim_anc_states <- root_state
+            #sim_anc_states <- vector() # this will not include the root state
+            for (j in (length(tip_states) + 1):max(sim_tree$orig$idx2)) {
+
+               sim_anc_states <- c(sim_anc_states, sim_tree$orig$state[ sim_tree$orig$idx2 == j ] )
+
+            }
+
+            # infer ancestral states using
+            # Brownian motion (BM) model fitted by residual maximum likelihood
+            est_data_bm <- ace(tip_states, sim_tree, type="continuous")
+            est_root_state_bm <- as.vector(est_data_bm$ace)[1]
+            est_anc_states_bm <- c(est_root_state_bm, as.vector(est_data_bm$ace))
+
+            # infer ancestral states using
+            # linear parsimony (LP)
+            est_data_lp <- ace_lp(tip_states, sim_tree)
+            est_root_state_lp <- est_data_lp[1]
+            est_anc_states_lp <- c(est_root_state_lp, est_data_lp)
+
+            # calculate contrasts between simulated and BM estimated ancestral states
+            node_differences_bm <- sim_anc_states[1:length(est_anc_states_bm)] - est_anc_states_bm
+            root_difference_bm <- sim_anc_states[1] - est_anc_states_bm[1]
+            
+            # calculate contrasts between simulated and LP estimated ancestral states
+            node_differences_lp <- sim_anc_states[1:length(est_anc_states_lp)] - est_anc_states_lp
+            root_difference_lp <- sim_anc_states[1] - est_anc_states_lp[1]
+
+            # save all the data for this simulation
+            simulations[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
+                                     sim_anc_states=sim_anc_states, est_data_bm=est_data_bm, est_anc_states_bm=est_anc_states_bm,
+                                     node_differences_bm=node_differences_bm, root_difference_bm=root_difference_bm, 
+                                     est_data_lp=est_data_lp, est_anc_states_lp=est_anc_states_lp,
+                                     node_differences_lp=node_differences_lp, root_difference_lp=root_difference_lp, 
+                                     finishing_time=finishing_time)
 
         }
-
-        # infer ancestral states using
-        # Brownian motion (BM) model fitted by residual maximum likelihood
-        est_data_bm <- ace(tip_states, sim_tree, type="continuous")
-        est_root_state_bm <- as.vector(est_data_bm$ace)[1]
-        est_anc_states_bm <- c(est_root_state_bm, as.vector(est_data_bm$ace))
-
-        # infer ancestral states using
-        # linear parsimony (LP)
-        est_data_lp <- ace_lp(tip_states, sim_tree)
-        est_root_state_lp <- est_data_lp[1]
-        est_anc_states_lp <- c(est_root_state_lp, est_data_lp)
-
-        # calculate contrasts between simulated and BM estimated ancestral states
-        node_differences_bm <- sim_anc_states[1:length(est_anc_states_bm)] - est_anc_states_bm
-        root_difference_bm <- sim_anc_states[1] - est_anc_states_bm[1]
-        
-        # calculate contrasts between simulated and LP estimated ancestral states
-        node_differences_lp <- sim_anc_states[1:length(est_anc_states_lp)] - est_anc_states_lp
-        root_difference_lp <- sim_anc_states[1] - est_anc_states_lp[1]
-
-        # save all the data for this simulation
-        simulations[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
-                                 sim_anc_states=sim_anc_states, est_data_bm=est_data_bm, est_anc_states_bm=est_anc_states_bm,
-                                 node_differences_bm=node_differences_bm, root_difference_bm=root_difference_bm, 
-                                 est_data_lp=est_data_lp, est_anc_states_lp=est_anc_states_lp,
-                                 node_differences_lp=node_differences_lp, root_difference_lp=root_difference_lp, 
-                                 finishing_time=finishing_time)
 
         # update progress bar
         setTxtProgressBar(pb, i/replicates)
@@ -102,7 +111,8 @@ plot_simulations <- function(replicates, simulations, est_type="bm") {
 
     # plot two traitgrams on top of one another
     traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$sim_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time, lab="trait", method="sim")
-    traitgram_given(simulations[[1]]$tip_states, est_anc_states, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time,method="est")
+    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states_bm, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time, color="red", method="est")
+    traitgram_given(simulations[[1]]$tip_states, simulations[[1]]$est_anc_states_lp, simulations[[1]]$sim_tree, simulations[[1]]$finishing_time, color="orange", method="est")
 
     # plot rescaled branch times against difference between simulated and estimated states
     branch_times <- unlist( sapply(simulations[1:replicates], function(x){x$finishing_time - x$branch_times}) )
@@ -170,27 +180,33 @@ ace_lp <- function(tip_states, tree) {
 tree.quasse.regimes <- function(pars, regimes=NA, max.taxa=Inf, max.t=Inf,
                         include.extinct=TRUE, x0=NA,
                         single.lineage=TRUE, verbose=FALSE) {
-  if ( is.na(x0) )
-    stop("x0 must be specified")
-  else if ( length(x0) != 1 )
-    stop("x0 must be of length 1")
-  if ( is.na(regimes) || !is.vector(regimes) )
-      stop("regimes must be a vector of times.")
-  stopifnot(is.list(pars), all(sapply(pars, is.list)))
-
-  info <- make.tree.quasse.regimes(pars, regimes, max.taxa, max.t, x0, single.lineage,
-                           verbose)
-  if ( single.lineage )
-    info <- info[-1,]
-  phy <- me.to.ape.quasse(info)
-  if ( include.extinct || is.null(phy) )
-    phy
-  else
-    phy2 <- prune(phy)
-    # add root stem
-    finishing_time <- max(attr(phy2$orig, "ages"))
-    phy2$root.edge <- finishing_time - max(branching.times(phy2))
-    phy2
+    if ( is.na(x0) )
+        stop("x0 must be specified")
+    else if ( length(x0) != 1 )
+        stop("x0 must be of length 1")
+    if ( is.na(regimes) || !is.vector(regimes) )
+        stop("regimes must be a vector of times.")
+    stopifnot(is.list(pars), all(sapply(pars, is.list)))
+  
+    info <- make.tree.quasse.regimes(pars, regimes, max.taxa, max.t, x0, single.lineage,
+                             verbose)
+    if ( single.lineage )
+        info <- info[-1,]
+    phy <- me.to.ape.quasse(info)
+    if ( include.extinct || is.null(phy) )
+        phy
+    else {
+        phy2 <- prune(phy)
+        # after pruning extinct lineages, check if any survived
+        if (class(phy2) != "phylo")
+            NULL
+        else {
+            # add root stem
+            finishing_time <- max(attr(phy2$orig, "ages"))
+            phy2$root.edge <- finishing_time - max(branching.times(phy2))
+            phy2
+        }
+    }
 }
 
 
@@ -362,7 +378,7 @@ me.to.ape.quasse <- function(info) {
 # If method="sim" then plot black trait lines.
 # If method="est" add to an existing plot the estimated trait values with red dashed lines.
 # Modified from package picante.
-traitgram_given <- function (x, internal_node_values, phy, finishing_time, xaxt = "s", underscore = FALSE, show.names = TRUE,
+traitgram_given <- function (x, internal_node_values, phy, finishing_time, color="red", xaxt = "s", underscore = FALSE, show.names = TRUE,
     show.xaxis.values = TRUE, method = c("sim", "est", "ML", "pic"), ...)
 {
     method <- match.arg(method)
@@ -425,7 +441,7 @@ traitgram_given <- function (x, internal_node_values, phy, finishing_time, xaxt 
             else axis(1, labels = FALSE)
         segments(x0, a0, x1, a1)
     } else {
-        segments(x0, a0, x1, a1, col="red", lty=2)
+        segments(x0, a0, x1, a1, col=color, lty=2)
     }
     if (show.names) {
         text(sort(xx), finishing_time, labels = names(xx)[order(xx)],
