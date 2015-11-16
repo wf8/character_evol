@@ -4,13 +4,11 @@
 # plus a few options for visually summarizing the results
 #
 
-# load the libraries and custom functions needed
-source("setup.R")
-
 # setup simulation parameters
 replicates <- 3
 max_time <- 10
 root_state <- 0.0
+output_file <- "test"
 
 # a vector to hold the times at which each regime ends
 regimes <- c(2.5, 5, 7.5, 10)
@@ -56,4 +54,5 @@ simulations <- simulate_trees(replicates, lambda, lambda_d, mu, mu_d, char, regi
 # plot some results
 #plot_simulations(replicates, simulations, est_type="lp")
 
-save(simulations, file="sim.RData")
+# save the results
+save(simulations, file=paste("output/", output_file, ".RData", sep=""))

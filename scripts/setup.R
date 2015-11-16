@@ -32,7 +32,7 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
         # check if all lineages went extinct
         if (is.null(sim_tree)) {
 
-            simulations[[i]] <- list(sim_tree=sim_tree)
+            simulations$data[[i]] <- list("extinct")
         
         } else {
 
