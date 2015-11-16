@@ -8,7 +8,7 @@
 source("setup.R")
 
 # setup simulation parameters
-replicates <- 1
+replicates <- 3
 max_time <- 10
 root_state <- 0.0
 
@@ -54,6 +54,6 @@ char <- list(make.brownian.with.drift(0, 1.0),
 simulations <- simulate_trees(replicates, lambda, lambda_d, mu, mu_d, char, regimes, max_time, root_state, include_extinct=FALSE) 
 
 # plot some results
-plot_simulations(replicates, simulations, est_type="lp")
+#plot_simulations(replicates, simulations, est_type="lp")
 
-
+save(simulations, file="sim.RData")

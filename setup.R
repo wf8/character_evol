@@ -73,12 +73,12 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
             root_difference_lp <- sim_anc_states[1] - est_anc_states_lp[1]
 
             # save all the data for this simulation
-            simulations[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
-                                     sim_anc_states=sim_anc_states, est_data_bm=est_data_bm, est_anc_states_bm=est_anc_states_bm,
-                                     node_differences_bm=node_differences_bm, root_difference_bm=root_difference_bm, 
-                                     est_data_lp=est_data_lp, est_anc_states_lp=est_anc_states_lp,
-                                     node_differences_lp=node_differences_lp, root_difference_lp=root_difference_lp, 
-                                     finishing_time=finishing_time)
+            simulations$data[[i]] <- list(sim_tree=sim_tree, tip_states=tip_states, branch_times=branch_times,
+                                          sim_anc_states=sim_anc_states, est_data_bm=est_data_bm, est_anc_states_bm=est_anc_states_bm,
+                                          node_differences_bm=node_differences_bm, root_difference_bm=root_difference_bm, 
+                                          est_data_lp=est_data_lp, est_anc_states_lp=est_anc_states_lp,
+                                          node_differences_lp=node_differences_lp, root_difference_lp=root_difference_lp, 
+                                          finishing_time=finishing_time)
 
         }
 
@@ -90,6 +90,17 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
     # record the final time
     simulations$processing_time <- Sys.time() - start_time
     
+    # remeber the simulations parameters
+    simulations$replicates <- replicates 
+    simulations$lambda <- lambda
+    simulations$lambda_d <- lambda_d
+    simulations$mu <- mu 
+    simulations$mu_d <- mu_d 
+    simulations$char <- char 
+    simulations$regimes <- regimes
+    simulations$max_time <- max_time
+    simulations$root_state <- root_state
+
     writeLines("\n")
 
     simulations
