@@ -235,7 +235,7 @@ tree.quasse.regimes <- function(pars, regimes=NA, max.taxa=Inf, max.t=Inf,
 # modified from package diversitree
 make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
                              single.lineage=TRUE,
-                             verbose=FALSE, k=50, ...) {
+                             verbose=FALSE, k=500, ...) {
   lambda   <- pars[[1]]
   lambda_d <- pars[[2]]
   mu       <- pars[[3]]
@@ -259,7 +259,7 @@ make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
   i <- 1
   j <- 2
   while ( n.taxa[1] <= max.taxa && n.taxa[1] > 0 && t.left_total > 0 ) {
-      verbose = TRUE
+      verbose = FALSE
       while ( t.left_regime > 0 && t.left_total > 0 ) {
         x <- run.until.change(lineages, info, k, lambda[[i]], lambda_d[[i]], mu[[i]], mu_d[[i]], char[[i]], t.left_regime)
         lineages <- x[[1]]
