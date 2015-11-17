@@ -26,11 +26,21 @@ simulate_trees <- function(replicates, lambda, lambda_d, mu, mu_d, char, regimes
     for (i in 1:replicates) {
     
         # simulate tree and character
-        sim_tree <- tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
-                                        max.t=max_time, x0=root_state, single.lineage=TRUE, include.extinct=include_extinct)
+        sim_tree <- tryCatch(tree.quasse.regimes(list(lambda, lambda_d, mu, mu_d, char), regimes=regimes,
+                                                 max.t=max_time, x0=root_state, single.lineage=TRUE, include.extinct=include_extinct),
+                                                 error = function(e) { 
+                                                            if (e$message == "Lineage threshold of 250 exceeded") 
+                                                                "Lineage threshold of 250 exceeded"
+                                                            else 
+                                                                "error" 
+                                                         })
+
+        if (class(sim_tree) == "character") {
+
+            simulations$data[[i]] <- list(sim_tree)
 
         # check if all lineages went extinct
-        if (is.null(sim_tree)) {
+        } else if (is.null(sim_tree)) {
 
             simulations$data[[i]] <- list("extinct")
         
@@ -225,7 +235,7 @@ tree.quasse.regimes <- function(pars, regimes=NA, max.taxa=Inf, max.t=Inf,
 # modified from package diversitree
 make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
                              single.lineage=TRUE,
-                             verbose=FALSE, k=500, ...) {
+                             verbose=FALSE, k=50, ...) {
   lambda   <- pars[[1]]
   lambda_d <- pars[[2]]
   mu       <- pars[[3]]
@@ -249,10 +259,12 @@ make.tree.quasse.regimes <- function(pars, regimes, max.taxa=Inf, max.t=Inf, x0,
   i <- 1
   j <- 2
   while ( n.taxa[1] <= max.taxa && n.taxa[1] > 0 && t.left_total > 0 ) {
-      verbose = FALSE
+      verbose = TRUE
       while ( t.left_regime > 0 && t.left_total > 0 ) {
         x <- run.until.change(lineages, info, k, lambda[[i]], lambda_d[[i]], mu[[i]], mu_d[[i]], char[[i]], t.left_regime)
         lineages <- x[[1]]
+        if (length(lineages) > 250)
+            stop("Lineage threshold of 250 exceeded")
         info <- x[[2]]
         n.taxa <- c(n.taxa, length(lineages))
         t <- t + x[[4]]
@@ -299,8 +311,10 @@ run.until.change <- function(lineages, info, k, lambda, lambda_d, mu, mu_d, char
     lx <- lambda(state) + lambda_d(length(lineages))
     mx <- mu(state) + mu_d(length(lineages))
     r <- sum(lx + mx)
+    if (r < 1.0e-3) {
+        r <- 1.0e-3
+    }
     dt <- 1/(r*k)
-    
     if ( runif(1) < p.change ) {
       if ( runif(1) < sum(lx)/r ) { # speciation
         i <- sample(n.extant, 1, prob=lx)
