@@ -23,6 +23,7 @@ jump = c(5, 10, 20)
 regimes <- c(5, 10)
 
 results <- list()
+iter <- 1
 
 for (i in 1:length(birth)) {
 
@@ -31,8 +32,8 @@ for (i in 1:length(birth)) {
         for (k in 1:length(sigma)) {
         
             for (l in 1:length(jump)) {
-
-                print(paste("Simulating under parameter set:", i * j * k * l, "out of", length(birth) * length(peak) * length(sigma) * length(jump)))
+                
+                print(paste("Simulating under parameter set:", iter, "out of", length(birth) * length(peak) * length(sigma) * length(jump)))
 
                 # for each regime, speciation and extinction are each calculated as the sum of two functions: 
                 # 1) a function of the character value x
@@ -59,7 +60,8 @@ for (i in 1:length(birth)) {
                              make.brownian.with.drift(0, beta[i]))
 
                 # run the simulations:
-                results[[i]] <- simulate_trees(replicates, lambda, lambda_d, mu, mu_d, char, regimes, max_time, root_state, include_extinct=FALSE)
+                results[[iter]] <- simulate_trees(replicates, lambda, lambda_d, mu, mu_d, char, regimes, max_time, root_state, include_extinct=FALSE)
+                iter <- iter + 1
 
                 # plot some results
                 #plot_simulations(replicates, simulations, est_type="lp")
