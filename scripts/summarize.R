@@ -6,8 +6,13 @@
 #
 
 file_path = "output/"
+summary_path = "results/"
 sim_types = c("uniform",
-              "static-peak")
+              "static-peak",
+              "jumping-peak",
+              "moving-peak",
+              "moving-peak-density05",
+              "moving-peak-density1")
 
 library(e1071)
 library(apTreeshape)
@@ -64,6 +69,7 @@ for ( i in 1:length(sim_types) ) {
         # tree shape stats
         n_too_many = 0
         n_extinct = 0
+        n_error = 0
         num_survivors = vector()
         node_ages = vector()
         colless_indices = vector()
@@ -99,6 +105,10 @@ for ( i in 1:length(sim_types) ) {
             } else if (rep == "extinct") { 
 
                 n_extinct = n_extinct + 1
+
+            } else if (rep == "error") {
+            
+                n_error = n_error + 1
 
             } else {
 
@@ -138,6 +148,7 @@ for ( i in 1:length(sim_types) ) {
         # tree shape stats
         d[j, "num_rep_over_250_lineages"] = n_too_many
         d[j, "num_rep_extinct"] = n_extinct
+        d[j, "num_rep_error"] = n_error
         d[j, "mean_num_survivor_lineages"] = mean(num_survivors, na.rm=TRUE)
         d[j, "median_node_age"] = median(node_ages)
         d[j, "mean_tree_imbalance_colless"] = mean( colless_indices, na.rm=TRUE )
@@ -162,5 +173,7 @@ for ( i in 1:length(sim_types) ) {
         d[j, "mean_lp_root_diff_div_tip_range"] = mean( lp_root_diff_div_tip_range, na.rm=TRUE )
 
     } # end looping through all simulation scenarios
-    write.table(d, sep=",", row.names=FALSE, file=paste(file_path, sim_types[i], ".csv", sep=""))
+    print(paste("Writing file: ", summary_path, sim_types[i], ".csv", sep=""))
+    write.table(d, sep=",", row.names=FALSE, file=paste(summary_path, sim_types[i], ".csv", sep=""))
 }
+print("Done.")
