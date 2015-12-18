@@ -14,11 +14,12 @@ sim_types = c("uniform",
               "moving-peak-density05",
               "moving-peak-density1")
 
+combined_dataframe = data.frame()
 
 # loop through results files and build dataframe 
 for ( i in 1:length(sim_types) ) {
 
-    file = paste(file_path, sim_types[i], ".csv", sep="")
+    file = paste(summary_path, sim_types[i], ".csv", sep="")
     d = read.table(file=file, sep=",", header=TRUE)
 
     # simulation parameters
@@ -32,8 +33,6 @@ for ( i in 1:length(sim_types) ) {
     density_dep = vector()
     sim_time = vector()
 
-    d = data.frame()
-
     # for each simulation type add the correct
     # parameter values
     if (sim_types[i] == "uniform") {
@@ -42,11 +41,11 @@ for ( i in 1:length(sim_types) ) {
         death = c(0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3)
         beta =  c(.01, .01, .01, .01, .01, .01, .01, .01, .01, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
-        peak_birth = rep(length(birth), 0)
-        sigma_birth = rep(length(birth), 0)
-        jump = rep(length(birth), 0)
-        slide = rep(length(birth), 0)
-        density_dep = rep(length(birth), 0)
+        peak_birth = rep(0, length(birth))
+        sigma_birth = rep(0, length(birth))
+        jump = rep(0, length(birth))
+        slide = rep(0, length(birth))
+        density_dep = rep(0, length(birth))
 
     } else if (sim_types[i] == "static-peak") {
 
@@ -74,7 +73,7 @@ for ( i in 1:length(sim_types) ) {
                 }
             }
         }
-    
+
     } else if (sim_types[i] == "jumping-peak") {
         
         birth_p =  c(0.0, 0.1, 0.2, 0.3, 0.2, 0.3, 0.4, 0.3, 0.4, 0.6, 0.0, 0.1, 0.2, 0.3, 0.2, 0.3, 0.4, 0.3, 0.4, 0.6, 0.0, 0.1, 0.2, 0.3, 0.2, 0.3, 0.4, 0.3, 0.4, 0.6)
@@ -202,18 +201,26 @@ for ( i in 1:length(sim_types) ) {
     }
 
     # add data to dataframe
-    d[j, "speciation"] = birth 
-    d[j, "extinction"] = death
-    d[j, "beta"] = beta
-    d[j, "peak_speciation"] = peak_birth
-    d[j, "sigma_speciation"] = sigma_birth
-    d[j, "jump_at_5_Ma"] = jump
-    d[j, "slide_every_1_Ma"] = slide
-    d[j, "density_dep_extinction"] = density_dep
-    d[j, "sim_time_Ma"] = rep(length(birth), 10)
-    d[j, "root_char_state"] = rep(length(birth), 0)
+    d["speciation"] = birth 
+    d["extinction"] = death
+    d["beta"] = beta
+    d["peak_speciation"] = peak_birth
+    d["sigma_speciation"] = sigma_birth
+    d["jump_at_5_Ma"] = jump
+    d["slide_every_1_Ma"] = slide
+    d["density_dep_extinction"] = density_dep
+    d["sim_time_Ma"] = rep(10, length(birth))
+    d["root_char_state"] = rep(0, length(birth))
+        
+    if (length(combined_dataframe) == 0)
+        combined_dataframe = d
+    else
+        combined_dataframe = rbind(d, combined_dataframe)
 
     print(paste("Writing file: ", final_path, sim_types[i], ".csv", sep=""))
     write.table(d, sep=",", row.names=FALSE, file=paste(final_path, sim_types[i], ".csv", sep=""))
 }
+print(paste("Writing file: ", final_path, "all_combined.csv", sep=""))
+write.table(combined_dataframe, sep=",", row.names=FALSE, file=paste(final_path, "all_combined.csv", sep=""))
+
 print("Done.")
