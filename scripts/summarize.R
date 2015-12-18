@@ -132,12 +132,12 @@ for ( i in 1:length(sim_types) ) {
 
                 # ancestral state estimates
                 bm_root_diff = c(bm_root_diff, rep$root_difference_bm)
-                bm_mean_node_diff = c(bm_mean_node_diff, mean(rep$node_differences_bm))
+                bm_mean_node_diff = c(bm_mean_node_diff, mean(rep$node_differences_bm, na.rm=TRUE))
                 bm_root_ci_min = c(bm_root_ci_min, min( rep$est_data_bm$CI95[ length(rep$est_data_bm$CI95[,2]),] ) )
                 bm_root_ci_max = c(bm_root_ci_max, max( rep$est_data_bm$CI95[ length(rep$est_data_bm$CI95[,2]),] ) )
                 bm_root_diff_div_tip_range = c(bm_root_diff_div_tip_range, rep$root_difference_bm / max( rep$tip_states ) - min( rep$tip_states ) )
                 lp_root_diff = c(lp_root_diff, rep$root_difference_lp)
-                lp_mean_node_diff = c(lp_mean_node_diff, mean(rep$node_differences_lp))
+                lp_mean_node_diff = c(lp_mean_node_diff, mean(rep$node_differences_lp, na.rm=TRUE))
                 lp_root_diff_div_tip_range = c(lp_root_diff_div_tip_range, rep$root_difference_lp / max( rep$tip_states ) - min( rep$tip_states ) )
 
            }
@@ -173,7 +173,7 @@ for ( i in 1:length(sim_types) ) {
         d[j, "mean_lp_root_diff_div_tip_range"] = mean( lp_root_diff_div_tip_range, na.rm=TRUE )
 
     } # end looping through all simulation scenarios
-    print(paste("Writing file: ", summary_path, sim_types[i], ".csv", sep=""))
     write.table(d, sep=",", row.names=FALSE, file=paste(summary_path, sim_types[i], ".csv", sep=""))
+    print(paste("Wrote file: ", summary_path, sim_types[i], ".csv", sep=""))
 }
 print("Done.")
